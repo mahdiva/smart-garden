@@ -1,1 +1,3 @@
-# smart-garden
+# Smart Garden
+
+ENEL 400 Project
