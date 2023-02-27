@@ -6,11 +6,11 @@
 #define DHTPIN 4       // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT11  // DHT 11
 
-#define WIFI_NAME "NAME"
-#define WIFI_PASS "PASS"
+#define WIFI_NAME "Pixel_AP1"
+#define WIFI_PASS "mien9950"
 
 using namespace websockets;
-const char* websockets_connection_string = "ws://192.168.0.21:3000";
+const char* websockets_connection_string = "ws://192.168.233.229:3000";
 WebsocketsClient client;
 
 void onEventsCallback(WebsocketsEvent event, String data) {
