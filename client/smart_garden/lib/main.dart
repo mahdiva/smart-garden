@@ -81,10 +81,10 @@ class SmartGardenHomeState extends State<SmartGardenHome> {
           print('Light Intensity = ${json_data["light_intensity"]}');
 
           setState(() {
-            humidity = json_data["humidity"];
-            temp = json_data["temp"];
-            soilMoisture = json_data["soil_moisture"];
-            lightIntensity = json_data["light_intensity"];
+            humidity = json_data["humidity"].toDouble();
+            temp = json_data["temp"].toDouble();
+            soilMoisture = json_data["soil_moisture"].toDouble();
+            lightIntensity = json_data["light_intensity"].toDouble();
           });
         }
       },

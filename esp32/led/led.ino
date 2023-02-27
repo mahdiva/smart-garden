@@ -1,7 +1,7 @@
 #include "FastLED.h"
 #define NUM_LEDS 60
 CRGB leds[NUM_LEDS];
-#define PIN 4
+#define PIN 5
 
 void setup()
 {
@@ -10,6 +10,7 @@ void setup()
 
 void loop() {
   fill_solid(leds, NUM_LEDS, CRGB(255, 0, 255));
+  FastLED.show();
 }
 
 void setPixel(int Pixel, byte red, byte green, byte blue) {

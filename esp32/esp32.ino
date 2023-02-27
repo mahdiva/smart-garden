@@ -2,13 +2,15 @@
 #include "DHT.h"
 #include "ArduinoWebsockets.h"
 #include "ArduinoJson.h"
+#include "FastLED.h"
+#include <Servo.h>
 
 // ==================== Pin Assignment ==================== //
 #define DHT_PIN 4
-#define SOIL_MOISTURE_PIN 5
-#define LED_PIN 6
-#define SERVO_PIN 7
-#define WATER_PUMP_PIN 8
+#define SOIL_MOISTURE_PIN 36 // Analog
+#define LED_PIN 16
+#define SERVO_PIN 17
+#define WATER_PUMP_PIN 18
 
 // ==================== WiFi Credentials ==================== //
 #define WIFI_NAME ""
@@ -18,14 +20,20 @@
 
 // ==================== Initialization ==================== //
 #define DHT_TYPE DHT11
+#define NUM_LEDS 60
 
 DHT dht(DHT_PIN, DHT_TYPE);
+CRGB leds[NUM_LEDS];
+Servo servo;
+
+int led_state = 0;
+int window_state = 0;
+unsigned long timer_start = 0;
 
 using namespace websockets;
 WebsocketsClient ws;
 
-void onEventsCallback(WebsocketsEvent event, String data)
-{
+void onEventsCallback(WebsocketsEvent event, String data) {
   if (event == WebsocketsEvent::ConnectionOpened)
   {
     Serial.println("WS connection opened");
@@ -36,14 +44,24 @@ void onEventsCallback(WebsocketsEvent event, String data)
   }
 }
 
-void onMessageCallback(WebsocketsMessage message)
-{
+void onMessageCallback(WebsocketsMessage message) {
+  String msg_str = message.data();
+
   Serial.print("WS Message: ");
-  Serial.println(message.data());
+  Serial.println(msg_str);
+
+  DynamicJsonDocument msg_json(1024);
+  deserializeJson(msg_json, msg_str);
+  String action = msg_json["action"];
+
+  if (action.equals("led_toggle")){
+    toggle_leds(msg_json["state"]);
+  } else if (action.equals("window_toggle")){
+    toggle_window(msg_json["state"]);
+  }
 }
 
-void connect_wifi()
-{
+void connect_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_NAME, WIFI_PASS);
   Serial.printf("Connecting to WiFi %s..", WIFI_NAME);
@@ -57,12 +75,41 @@ void connect_wifi()
   Serial.println(WiFi.localIP());
 }
 
-void setup()
-{
+void toggle_leds(int state){
+  if (state){
+    fill_solid(leds, NUM_LEDS, CRGB(190, 0, 190));
+    FastLED.show();
+  } else {
+    FastLED.clear(); // Turn off all LEDs
+    FastLED.show();
+  }
+  led_state = state;
+}
+
+void toggle_window(int state){
+  if (state){
+    for (int pos = 0; pos <= 90; pos += 1) {
+      servo.write(pos);
+      delay(40);
+    }
+  } else {
+    for (int pos = 90; pos >= 0; pos -= 1) {
+      servo.write(pos);
+      delay(40);
+    }
+  }
+  window_state = state;
+}
+
+void setup() {
   Serial.begin(115200);
   Serial.print("\n======================\n\n");
 
   connect_wifi();
+
+  FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+  servo.attach(SERVO_PIN);
 
   // Register Websocket callback functions
   ws.onMessage(onMessageCallback);
@@ -71,61 +118,76 @@ void setup()
   // ws.send("ESP32 Connected!");
 
   dht.begin();
+
+  timer_start = millis();
 }
 
-void loop()
-{
+void loop() {
   ws.poll();
 
-  float temp = get_temp();
-  float humidity = get_humidity();
+  if ((millis() - timer_start) >= 3000) {
+    float temp = get_temp();
+    float humidity = get_humidity();
+    float soil_moisture = get_soil_moisture();
 
-  DynamicJsonDocument env_conditions(1024);
+    Serial.printf("Temperature:      %.1f°C \n", temp);
+    Serial.printf("Humidity:         %.1f%% \n", humidity);
+    Serial.printf("Soil Moisture:    %.1f%% \n", soil_moisture);
 
-  env_conditions["action"] = "env_conditions";
-  env_conditions["humidity"] = humidity;
-  env_conditions["temp"] = temp;
-  env_conditions["soil_moisture"] = 70.0;
-  env_conditions["light_intensity"] = 16.0;
+    DynamicJsonDocument env_conditions(1024);
 
-  // char data[200];
-  // size_t len = serializeJson(env_conditions, data);
+    env_conditions["action"] = "env_conditions";
+    env_conditions["humidity"] = humidity;
+    env_conditions["temp"] = temp;
+    env_conditions["soil_moisture"] = soil_moisture;
+    env_conditions["light_intensity"] = 15.0;
 
-  String output;
-  serializeJson(env_conditions, output);
-  ws.send(output);
-  // serializeJson(env_conditions, client.send);
+    String output;
+    serializeJson(env_conditions, output);
+    ws.send(output);
 
-  delay(2000);
+    timer_start = millis();
+  }
+
+  // delay(2000);
 }
 
-float get_temp()
-{
-  // Reading temperature or humidity takes about 250 milliseconds!
-  float t = dht.readTemperature(); // C
+float get_soil_moisture(){
+  int value = analogRead(SOIL_MOISTURE_PIN);
 
-  if (isnan(t))
-  {
+  // Max value (water): 2800
+  // Min value (air): 1170
+  if (value > 2800) {
+    value = 2800;
+  } else if (value < 1170) {
+    value = 1170;
+  }
+  float rh = (1.00 - ((value - 1170.0) / (2800.0 - 1170.0))) * 100.0;
+
+  // Serial.print("Soil Moisture Value: ");
+  // Serial.println(value);
+
+  return rh;
+}
+
+float get_temp() {
+  // Reading temperature or humidity takes about 250 milliseconds
+  float t = dht.readTemperature(); // C
+  if (isnan(t)) {
     Serial.println(F("ERROR: Failed to read temperature from DHT sensor"));
     return -273.0;
   }
-
-  Serial.printf("Temperature: %.1f°C \n", t);
-
+  
   return t;
 }
 
-float get_humidity()
-{
+float get_humidity() {
   float h = dht.readHumidity(); // RH%
-
-  if (isnan(h))
-  {
+  if (isnan(h)) {
     Serial.println(F("ERROR: Failed to read humidity from DHT sensor"));
     return -1.0;
   }
-
-  Serial.printf("Humidity:    %.1f%% \n", h);
+  
   return h;
 
   // Compute heat index in Celsius
