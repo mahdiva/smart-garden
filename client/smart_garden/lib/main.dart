@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
@@ -7,7 +8,7 @@ import 'package:smart_garden/header.dart';
 
 void main() => runApp(MyApp());
 
-final primColor = Colors.blue;
+const primColor = Colors.blue;
 
 class MyApp extends StatelessWidget {
   @override
@@ -29,10 +30,44 @@ class SmartGardenHomeState extends State<SmartGardenHome> {
   final channel = WebSocketChannel.connect(
     Uri.parse('ws://192.168.0.21:3000'),
   );
-  var temp = "22";
-  var humidity = "30";
-  var soilMoisture = "60";
-  var lightIntensity = "15";
+  double temp = 22.0;
+  double humidity = 30.0;
+  double soilMoisture = 60.0;
+  double lightIntensity = 15.0;
+
+  bool ledState = true;
+  bool windowState = false;
+  bool showerState = false;
+
+  void toggleLED() {
+    setState(() {
+      ledState = !ledState;
+    });
+    channel.sink.add('{"action": "led_toggle", "state": ${ledState ? 1 : 0}}');
+  }
+
+  void toggleWindow() {
+    setState(() {
+      windowState = !windowState;
+    });
+    channel.sink
+        .add('{"action": "window_toggle", "state": ${windowState ? 1 : 0}}');
+  }
+
+  void toggleShower() {
+    if (!showerState) {
+      setState(() {
+        showerState = true;
+      });
+      channel.sink.add('{"action": "shower"}');
+
+      var timer = Timer(const Duration(seconds: 4), () {
+        setState(() {
+          showerState = false;
+        });
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -63,56 +98,102 @@ class SmartGardenHomeState extends State<SmartGardenHome> {
     return Scaffold(
         backgroundColor: Colors.white,
         body: Container(
-          margin: EdgeInsets.only(top: 60.0),
+          margin: EdgeInsets.only(top: 80.0),
           child: Column(
             children: [
-              SmartGardenHeader(),
-              Container(
-                height: MediaQuery.of(context).size.height / 2,
-                width: MediaQuery.of(context).size.width,
-                child: Transform.translate(
-                    offset: Offset(0, 0), // set a negative margin on the top
-                    child: Image.asset(
-                      'assets/plant.png',
-                      fit: BoxFit.contain,
-                    )),
+              SmartGardenHeader(
+                ledState: ledState,
+                toggleLED: toggleLED,
               ),
-              SizedBox(
-                width: MediaQuery.of(context).size.width * 0.9,
-                child: GridView.count(
-                  padding: EdgeInsets.only(top: 20),
-                  mainAxisSpacing: 15,
-                  crossAxisSpacing: 15,
-                  crossAxisCount: 2,
-                  childAspectRatio: 2.0,
-                  shrinkWrap: true,
+              Row(
+                  mainAxisAlignment: MainAxisAlignment
+                      .spaceEvenly, // Set the alignment of the children
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    SensorButton(
-                      title: 'Humidity',
-                      subtitle: '${humidity}%',
-                      icon: Icons.water_drop_outlined,
-                      backgroundColor: Color.fromRGBO(241, 244, 255, 1),
+                    ElevatedButton(
+                        onPressed: () {
+                          toggleWindow();
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            elevation: 0.0,
+                            shadowColor: Colors.transparent),
+                        child: Icon(
+                          Icons.air_outlined,
+                          color: windowState ? Colors.blue : Colors.black,
+                          weight: 100,
+                          size: 64,
+                        )),
+                    Container(
+                      height: MediaQuery.of(context).size.height / 2.2,
+                      // width: MediaQuery.of(context).size.width,
+                      child: Transform.translate(
+                          offset: const Offset(
+                              0, -30.0), // set a negative margin on the top
+                          child: Image.asset(
+                            'assets/plant.png',
+                            fit: BoxFit.contain,
+                          )),
                     ),
-                    SensorButton(
-                      title: 'Temperature',
-                      subtitle: '${temp}°C',
-                      icon: Icons.thermostat_outlined,
-                      backgroundColor: Color.fromRGBO(253, 234, 236, 1),
-                    ),
-                    SensorButton(
-                      title: 'Soil Moisture',
-                      subtitle: '${soilMoisture}%',
-                      icon: Icons.grass,
-                      backgroundColor: Color.fromRGBO(225, 255, 250, 1),
-                    ),
-                    SensorButton(
-                      title: 'Light',
-                      subtitle: '${lightIntensity}%',
-                      icon: Icons.wb_sunny_outlined,
-                      backgroundColor: Color.fromRGBO(251, 242, 231, 1),
-                    ),
-                  ],
-                ),
+                    ElevatedButton(
+                        onPressed: () {
+                          toggleShower();
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            elevation: 0.0,
+                            shadowColor: Colors.transparent),
+                        child: Icon(
+                          Icons.shower_outlined,
+                          color: showerState ? Colors.blue : Colors.black,
+                          weight: 100,
+                          size: 70,
+                        )),
+                  ]),
+              SizedBox(
+                width: MediaQuery.of(context).size.width * 0.85,
+                child: Transform.translate(
+                    offset: const Offset(0, -30.0),
+                    child: GridView.count(
+                      padding: EdgeInsets.only(top: 20),
+                      mainAxisSpacing: 15,
+                      crossAxisSpacing: 15,
+                      crossAxisCount: 2,
+                      childAspectRatio: 2.0,
+                      shrinkWrap: true,
+                      children: [
+                        SensorButton(
+                          title: 'Humidity',
+                          subtitle: '${humidity.toStringAsFixed(0)}%',
+                          icon: Icons.water_drop_outlined,
+                          backgroundColor: Color.fromRGBO(241, 244, 255, 1),
+                        ),
+                        SensorButton(
+                          title: 'Temperature',
+                          subtitle: '${temp.toStringAsFixed(1)}°C',
+                          icon: Icons.thermostat_outlined,
+                          backgroundColor: Color.fromRGBO(253, 234, 236, 1),
+                        ),
+                        SensorButton(
+                          title: 'Soil Moisture',
+                          subtitle: '${soilMoisture.toStringAsFixed(0)}%',
+                          icon: Icons.grass,
+                          backgroundColor: Color.fromRGBO(225, 255, 250, 1),
+                        ),
+                        SensorButton(
+                          title: 'Light',
+                          subtitle: '${lightIntensity.toStringAsFixed(0)}%',
+                          icon: Icons.wb_sunny_outlined,
+                          backgroundColor: Color.fromRGBO(251, 242, 231, 1),
+                        ),
+                      ],
+                    )),
               ),
             ],
           ),

@@ -54,7 +54,7 @@ class SensorButton extends StatelessWidget {
                   padding: EdgeInsets.only(left: 10.0),
                   child: Text(
                     title,
-                    style: TextStyle(fontSize: 17.0, color: Colors.black),
+                    style: TextStyle(fontSize: 14.0, color: Colors.black),
                   ),
                 ),
               ],
@@ -65,7 +65,7 @@ class SensorButton extends StatelessWidget {
         Text(
           subtitle,
           style: TextStyle(
-              fontWeight: FontWeight.w900, fontSize: 25.0, color: Colors.black),
+              fontWeight: FontWeight.w800, fontSize: 18.0, color: Colors.black),
         ),
       ]),
     );
