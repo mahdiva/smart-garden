@@ -40,7 +40,7 @@ class SmartGardenHomeState extends State<SmartGardenHome> {
   bool showerState = false;
 
   void toggleLED() {
-    setState(() {
+    setState(() { 
       ledState = !ledState;
     });
     channel.sink.add('{"action": "led_toggle", "state": ${ledState ? 1 : 0}}');

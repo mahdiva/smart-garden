@@ -3,7 +3,7 @@ const app = express()
 const cors = require("cors")
 const http = require('http')
 const WebSocket = require('ws')
-const PORT = 3000;
+const PORT = 80;
 
 app.use(
     cors({

@@ -6,21 +6,21 @@
 #include <Servo.h>
 
 // ==================== Pin Assignment ==================== //
-#define DHT_PIN 4
+#define DHT_PIN 13
 #define SOIL_MOISTURE_PIN 36 // Analog
-#define LED_PIN 16
-#define SERVO_PIN 17
-#define WATER_PUMP_PIN 18
+#define LED_PIN 26
+#define SERVO_PIN 33
+#define WATER_PUMP_PIN 4
 
 // ==================== WiFi Credentials ==================== //
-#define WIFI_NAME ""
-#define WIFI_PASS ""
+#define WIFI_NAME "Pixel_AP1"
+#define WIFI_PASS "mien9950"
 
-#define WS_CONNECTION_STR "ws://192.168.0.21:3000"
+#define WS_CONNECTION_STR "ws://192.168.131.229:3000"
 
 // ==================== Initialization ==================== //
 #define DHT_TYPE DHT11
-#define NUM_LEDS 60
+#define NUM_LEDS 24
 
 DHT dht(DHT_PIN, DHT_TYPE);
 CRGB leds[NUM_LEDS];
@@ -58,6 +58,10 @@ void onMessageCallback(WebsocketsMessage message) {
     toggle_leds(msg_json["state"]);
   } else if (action.equals("window_toggle")){
     toggle_window(msg_json["state"]);
+  } else if(action.equals("shower")){
+    digitalWrite(WATER_PUMP_PIN, HIGH);
+    delay(5000);
+    digitalWrite(WATER_PUMP_PIN, LOW);
   }
 }
 
@@ -105,6 +109,8 @@ void setup() {
   Serial.begin(115200);
   Serial.print("\n======================\n\n");
 
+  pinMode(WATER_PUMP_PIN, OUTPUT);
+
   connect_wifi();
 
   FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
@@ -118,6 +124,8 @@ void setup() {
   // ws.send("ESP32 Connected!");
 
   dht.begin();
+
+  
 
   timer_start = millis();
 }
