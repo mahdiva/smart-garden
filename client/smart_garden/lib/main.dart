@@ -28,7 +28,7 @@ class SmartGardenHome extends StatefulWidget {
 
 class SmartGardenHomeState extends State<SmartGardenHome> {
   final channel = WebSocketChannel.connect(
-    Uri.parse('ws://192.168.0.21:3000'),
+    Uri.parse('ws://18.118.210.197'),
   );
   double temp = 22.0;
   double humidity = 30.0;
@@ -40,7 +40,7 @@ class SmartGardenHomeState extends State<SmartGardenHome> {
   bool showerState = false;
 
   void toggleLED() {
-    setState(() { 
+    setState(() {
       ledState = !ledState;
     });
     channel.sink.add('{"action": "led_toggle", "state": ${ledState ? 1 : 0}}');
