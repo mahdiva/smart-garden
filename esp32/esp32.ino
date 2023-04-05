@@ -8,15 +8,16 @@
 // ==================== Pin Assignment ==================== //
 #define DHT_PIN 13
 #define SOIL_MOISTURE_PIN 36 // Analog
-#define LED_PIN 26
-#define SERVO_PIN 33
-#define WATER_PUMP_PIN 4
+#define LED_PIN 22
+#define SERVO_PIN 4
+#define WATER_PUMP_PIN 26
+#define LDR_PIN 32
 
 // ==================== WiFi Credentials ==================== //
 #define WIFI_NAME "Pixel_AP1"
 #define WIFI_PASS "mien9950"
 
-#define WS_CONNECTION_STR "ws://192.168.131.229:3000"
+#define WS_CONNECTION_STR "ws://18.118.210.197:80"
 
 // ==================== Initialization ==================== //
 #define DHT_TYPE DHT11
@@ -137,10 +138,12 @@ void loop() {
     float temp = get_temp();
     float humidity = get_humidity();
     float soil_moisture = get_soil_moisture();
+    float light_intensity = get_light_intensity();
 
     Serial.printf("Temperature:      %.1f°C \n", temp);
     Serial.printf("Humidity:         %.1f%% \n", humidity);
     Serial.printf("Soil Moisture:    %.1f%% \n", soil_moisture);
+    Serial.printf("Light Intensity:    %.1f%% \n", light_intensity);
 
     DynamicJsonDocument env_conditions(1024);
 
@@ -148,7 +151,7 @@ void loop() {
     env_conditions["humidity"] = humidity;
     env_conditions["temp"] = temp;
     env_conditions["soil_moisture"] = soil_moisture;
-    env_conditions["light_intensity"] = 15.0;
+    env_conditions["light_intensity"] = light_intensity;
 
     String output;
     serializeJson(env_conditions, output);
@@ -158,6 +161,24 @@ void loop() {
   }
 
   // delay(2000);
+}
+
+float get_light_intensity(){
+  int value = analogRead(LDR_PIN);
+
+  // Max value (light): 4500
+  // Min value (dark): 0
+  if (value > 4500) {
+    value = 4500;
+  } else if (value < 0) {
+    value = 0;
+  }
+  float light_intensity_percentage = ((value - 0.0) / (4500.0 - 0.0)) * 100.0;
+
+  Serial.print("Light intensity: ");
+  Serial.println(value);
+
+  return light_intensity_percentage;
 }
 
 float get_soil_moisture(){
