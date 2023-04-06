@@ -11,6 +11,11 @@ app.use(
     })
 )
 
+let humidity = 0.0;
+let temp = -273.0;
+let soil_moisture = 0.0;
+let light_intensity = 0.0;
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server: server });
 
@@ -20,9 +25,18 @@ wss.on('connection', function (ws) {
     ws.on('message', function (message) {
         console.log(`Received: ${message.toString()}`);
 
+        let json_data = JSON.parse(message.toString());
+        if (json_data['action'] == 'env_conditions') {
+              humidity = json_data["humidity"];
+              temp = json_data["temp"];
+              soil_moisture = json_data["soil_moisture"];
+              light_intensity = json_data["light_intensity"];
+          }
+
         wss.clients.forEach(function each(client) {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(message.toString());
+                
             }
         });
     });
@@ -75,6 +89,17 @@ app.get('/shower', (req, res) => {
     setTimeout(() => {
         ws.send('{"action": "shower"}');
         res.send('SHOWER');
+    }, 100);
+});
+
+app.get('/stats', (req, res) => {
+    setTimeout(() => {
+        res.json({
+            temp,
+            soil_moisture,
+            humidity,
+            light_intensity,
+         });
     }, 100);
 });
 
