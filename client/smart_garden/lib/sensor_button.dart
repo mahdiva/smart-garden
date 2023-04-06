@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:smart_garden/input_dialog.dart';
 
 class SensorButton extends StatelessWidget {
   final String title;
   final String subtitle;
+  final String target;
   final IconData icon;
   final Color backgroundColor;
+  final dynamic onNumberEntered;
 
   SensorButton(
       {required this.title,
       required this.subtitle,
+      required this.target,
       required this.icon,
-      required this.backgroundColor});
+      required this.backgroundColor,
+      required this.onNumberEntered});
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: () {},
+      onPressed: () => showDialog(
+        context: context,
+        builder: (_) => NumberInputDialog(
+          onNumberEntered: onNumberEntered,
+        ),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
         padding: EdgeInsets.fromLTRB(15, 10, 15, 5),
@@ -62,10 +72,37 @@ class SensorButton extends StatelessWidget {
           ],
         ),
         SizedBox(height: 8.0),
-        Text(
-          subtitle,
-          style: TextStyle(
-              fontWeight: FontWeight.w800, fontSize: 18.0, color: Colors.black),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Flexible(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18.0,
+                      color: Colors.black),
+                ),
+              ),
+            ),
+            Flexible(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  target,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.0,
+                      color: Colors.grey),
+                ),
+              ),
+            ),
+          ],
         ),
       ]),
     );

@@ -1,6 +1,6 @@
 #include "WiFi.h"
 #include "DHT.h"
-#include "ArduinoWebsockets.h"
+#include <WebSocketsClient.h>
 #include "ArduinoJson.h"
 #include "FastLED.h"
 #include <Servo.h>
@@ -17,7 +17,8 @@
 #define WIFI_NAME "Pixel_AP1"
 #define WIFI_PASS "mien9950"
 
-#define WS_CONNECTION_STR "ws://18.118.210.197:80"
+#define WS_SERVER_IP "18.118.210.197"
+#define WS_SERVER_PORT 80
 
 // ==================== Initialization ==================== //
 #define DHT_TYPE DHT11
@@ -26,43 +27,40 @@
 DHT dht(DHT_PIN, DHT_TYPE);
 CRGB leds[NUM_LEDS];
 Servo servo;
+WebSocketsClient webSocket;
+
+double target_temp = 22.0;
+double target_humidity = 30.0;
+double target_soil_moisture = 40.0;
+double target_light_intensity = 50.0;
 
 int led_state = 0;
 int window_state = 0;
 unsigned long timer_start = 0;
 
-using namespace websockets;
-WebsocketsClient ws;
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+  if (type == WStype_TEXT) {
+    // Serial.print("WS Message: ");
+    // Serial.println(payload);
 
-void onEventsCallback(WebsocketsEvent event, String data) {
-  if (event == WebsocketsEvent::ConnectionOpened)
-  {
-    Serial.println("WS connection opened");
-  }
-  else if (event == WebsocketsEvent::ConnectionClosed)
-  {
-    Serial.println("WS connnection closed");
-  }
-}
+    DynamicJsonDocument msg_json(1024);
+    deserializeJson(msg_json, payload);
+    String action = msg_json["action"];
 
-void onMessageCallback(WebsocketsMessage message) {
-  String msg_str = message.data();
-
-  Serial.print("WS Message: ");
-  Serial.println(msg_str);
-
-  DynamicJsonDocument msg_json(1024);
-  deserializeJson(msg_json, msg_str);
-  String action = msg_json["action"];
-
-  if (action.equals("led_toggle")){
-    toggle_leds(msg_json["state"]);
-  } else if (action.equals("window_toggle")){
-    toggle_window(msg_json["state"]);
-  } else if(action.equals("shower")){
-    digitalWrite(WATER_PUMP_PIN, HIGH);
-    delay(5000);
-    digitalWrite(WATER_PUMP_PIN, LOW);
+    if (action.equals("led_toggle")) {
+      toggle_leds(msg_json["state"]);
+    } else if (action.equals("window_toggle")) {
+      toggle_window(msg_json["state"]);
+    } else if(action.equals("shower")) {
+      digitalWrite(WATER_PUMP_PIN, HIGH);
+      delay(3000);
+      digitalWrite(WATER_PUMP_PIN, LOW);
+    } else if(action.equals("update_target_conditions")) {
+      target_temp = msg_json["target_temp"];
+      target_humidity = msg_json["target_humidity"];
+      target_soil_moisture = msg_json["target_soil_moisture"];
+      target_light_intensity = msg_json["target_light_intensity"];
+    }
   }
 }
 
@@ -70,8 +68,7 @@ void connect_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_NAME, WIFI_PASS);
   Serial.printf("Connecting to WiFi %s..", WIFI_NAME);
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(1000);
   }
@@ -81,60 +78,60 @@ void connect_wifi() {
 }
 
 void toggle_leds(int state){
-  if (state){
-    fill_solid(leds, NUM_LEDS, CRGB(190, 0, 190));
-    FastLED.show();
-  } else {
-    FastLED.clear(); // Turn off all LEDs
-    FastLED.show();
+  if (state != led_state){
+    if (state) {
+      fill_solid(leds, NUM_LEDS, CRGB(190, 0, 190));
+      FastLED.show();
+    } else {
+      FastLED.clear(); // Turn off all LEDs
+      FastLED.show();
+    }
+    led_state = state;
   }
-  led_state = state;
 }
 
 void toggle_window(int state){
-  if (state){
-    for (int pos = 0; pos <= 90; pos += 1) {
-      servo.write(pos);
-      delay(40);
+  if (state != window_state){
+    if (state) {
+      for (int pos = 0; pos <= 90; pos += 1) {
+        servo.write(pos);
+        delay(40);
+      }
+    } else {
+      for (int pos = 90; pos >= 0; pos -= 1) {
+        servo.write(pos);
+        delay(40);
+      }
     }
-  } else {
-    for (int pos = 90; pos >= 0; pos -= 1) {
-      servo.write(pos);
-      delay(40);
-    }
+    window_state = state;
   }
-  window_state = state;
+  
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("\n======================\n\n");
-
-  pinMode(WATER_PUMP_PIN, OUTPUT);
+  Serial.print("\n==============================================\n\n");
 
   connect_wifi();
 
-  FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-  servo.attach(SERVO_PIN);
-
-  // Register Websocket callback functions
-  ws.onMessage(onMessageCallback);
-  ws.onEvent(onEventsCallback);
-  ws.connect(WS_CONNECTION_STR);
-  // ws.send("ESP32 Connected!");
-
   dht.begin();
+  FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  servo.attach(SERVO_PIN);
+  pinMode(WATER_PUMP_PIN, OUTPUT);
 
-  
+  delay(2000);
+  webSocket.begin(WS_SERVER_IP, WS_SERVER_PORT, "/"); 
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(3000);
+  //ws.send("ESP32 Connected!");  
 
   timer_start = millis();
 }
 
 void loop() {
-  ws.poll();
+  webSocket.loop();
 
-  if ((millis() - timer_start) >= 3000) {
+  if ((millis() - timer_start) >= 1000) {
     float temp = get_temp();
     float humidity = get_humidity();
     float soil_moisture = get_soil_moisture();
@@ -145,6 +142,32 @@ void loop() {
     Serial.printf("Soil Moisture:    %.1f%% \n", soil_moisture);
     Serial.printf("Light Intensity:    %.1f%% \n", light_intensity);
 
+    //================== Environment Conditions Controller:
+    if (temp < target_temp - 0.5) {
+      toggle_window(0);
+    } else if (temp > target_temp + 0.5) {
+      toggle_window(1);
+    }
+
+    if (humidity < target_humidity - 1.0) {
+      toggle_window(0);
+    } else if (humidity < target_humidity + 1.0) {
+      toggle_window(1);
+    }
+
+    if (light_intensity < target_light_intensity - 5.0) {
+      toggle_leds(1);
+    } else if (light_intensity > target_light_intensity + 5.0) {
+      toggle_leds(0);
+    }
+
+    if (soil_moisture < target_soil_moisture - 1.0) {
+      digitalWrite(WATER_PUMP_PIN, HIGH);
+      delay(3000);
+      digitalWrite(WATER_PUMP_PIN, LOW);
+    }
+    //================== End Controller
+
     DynamicJsonDocument env_conditions(1024);
 
     env_conditions["action"] = "env_conditions";
@@ -153,14 +176,16 @@ void loop() {
     env_conditions["soil_moisture"] = soil_moisture;
     env_conditions["light_intensity"] = light_intensity;
 
+    env_conditions["led_state"] = led_state;
+    env_conditions["window_state"] = window_state;
+
     String output;
     serializeJson(env_conditions, output);
-    ws.send(output);
+    //ws.send(output);
+    webSocket.sendTXT(output);
 
     timer_start = millis();
   }
-
-  // delay(2000);
 }
 
 float get_light_intensity(){
