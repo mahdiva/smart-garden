@@ -36,6 +36,46 @@ wss.on('connection', function (ws) {
     }
 });
 
-app.get('/', (req, res) => res.send('Hello World!'))
+app.get('/', (req, res) => res.send('Hello World!'));
+
+app.get('/led-on', (req, res) => {
+    const ws = new WebSocket("ws://127.0.0.1");
+    setTimeout(() => {
+        ws.send('{"action": "led_toggle", "state": 1}');
+        res.send('LED ON');
+    }, 100);
+});
+
+app.get('/led-off', (req, res) => {
+    const ws = new WebSocket("ws://127.0.0.1");
+    setTimeout(() => {
+        ws.send('{"action": "led_toggle", "state": 0}');
+        res.send('LED OFF');
+    }, 100);
+});
+
+app.get('/window-open', (req, res) => {
+    const ws = new WebSocket("ws://127.0.0.1");
+    setTimeout(() => {
+        ws.send('{"action": "window_toggle", "state": 1}');
+        res.send('WINDOW OPEN');
+    }, 100);
+});
+
+app.get('/window-closed', (req, res) => {
+    const ws = new WebSocket("ws://127.0.0.1");
+    setTimeout(() => {
+        ws.send('{"action": "window_toggle", "state": 0}');
+        res.send('WINDOW CLOSED');
+    }, 100);
+});
+
+app.get('/shower', (req, res) => {
+    const ws = new WebSocket("ws://127.0.0.1");
+    setTimeout(() => {
+        ws.send('{"action": "shower"}');
+        res.send('SHOWER');
+    }, 100);
+});
 
 server.listen(PORT, () => console.log(`Lisening on port :${PORT}`))
